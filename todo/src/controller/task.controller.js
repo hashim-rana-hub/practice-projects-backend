@@ -2,10 +2,22 @@ const Task = require("../models/task.model");
 
 const getTasks = async (req, res) => {
   try {
-    const tasks = await Task.find();
+    const totalTasks = await Task.find();
+    const { search } = req.query;
+    let query = {};
+    const page = parseInt(req.query.page) || 1;
+
+    const limit = parseInt(req.query.limit) || 100;
+    const skip = (page - 1) * limit;
+    if (search) {
+      query.title = { $regex: search, $options: "i" };
+    }
+
+    const tasks = await Task.find(query).limit(limit).skip(skip);
     res.status(200).json({
-      total: tasks.length,
+      total: totalTasks.length,
       tasks,
+      perPage: limit,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -31,11 +43,12 @@ const deleteTask = async (req, res) => {
 
 const createTask = async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, completed } = req.body;
 
     const task = new Task({
       title,
       description,
+      completed: completed !== undefined ? completed : false,
     });
 
     await task.save();
