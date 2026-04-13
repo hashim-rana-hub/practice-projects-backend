@@ -2,22 +2,27 @@ const Task = require("../models/task.model");
 
 const getTasks = async (req, res) => {
   try {
-    const totalTasks = await Task.find();
-    const { search } = req.query;
-    let query = {};
-    const page = parseInt(req.query.page) || 1;
+    const { search, completed, page = 1, limit = 10 } = req.query;
+    const query = {};
 
-    const limit = parseInt(req.query.limit) || 100;
     const skip = (page - 1) * limit;
     if (search) {
       query.title = { $regex: search, $options: "i" };
     }
+    if (completed !== undefined) {
+      query.completed = completed === "true";
+    }
 
-    const tasks = await Task.find(query).limit(limit).skip(skip);
+    const [tasks, total] = await Promise.all([
+      Task.find(query).skip(skip).limit(Number(limit)),
+      Task.countDocuments(query),
+    ]);
     res.status(200).json({
-      total: totalTasks.length,
+      total,
+      page: Number(page),
+      perPage: Number(limit),
+      totalPages: Math.ceil(total / limit),
       tasks,
-      perPage: limit,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
